@@ -1,4 +1,4 @@
-import { getProductos } from '@/utils/api/getProductos';
+import { getProductos } from './utils/api/getProductos';
 import Link from 'next/link';
 
 export default async function ProductosPage() {
