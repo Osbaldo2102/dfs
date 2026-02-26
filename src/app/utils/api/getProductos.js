@@ -1,11 +1,12 @@
-// import { API } from '@/config';
-
-export async function getProductos() {
+export const getProductos = async () => {
   const API = process.env.NEXT_PUBLIC_API_URL;
-  const res = await fetch(`${API}/productos`);
-  if (!res.ok) {
-    throw new Error('Error al cargar productos');
+  try {
+    const res = await fetch(`${API}/productos`, { cache: 'no-store' });
+    const data = await res.json();
+  
+    return data.data || []; 
+  } catch (error) {
+    console.error(error);
+    return [];
   }
-
-  return res.json();
-}
+};
