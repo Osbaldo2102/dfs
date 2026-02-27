@@ -60,12 +60,12 @@ export default function Navbar() {
         
         <ul className={`flex gap-8 items-center font-bold uppercase text-[11px] tracking-widest ${isAdmin ? 'text-zinc-400' : 'text-gray-500'}`}>
           
-          {/* ENLACES PÚBLICOS (Solo se muestran si NO es admin para no saturar) */}
-          {!isAdmin && (
-            <li>
-              <Link href="/servicios" className={`${linkHover} transition-colors`}>Servicios</Link>
-            </li>
-          )}
+          {/* SERVICIOS / GESTIÓN: Ahora visible para todos */}
+          <li>
+            <Link href="/servicios" className={`${linkHover} transition-colors uppercase`}>
+              {isAdmin ? 'Gestionar Servicios' : 'Servicios'}
+            </Link>
+          </li>
           
           {/* BOTÓN PRINCIPAL DE ACCIÓN */}
           <li>

@@ -16,17 +16,30 @@ export default function ServiciosBarberiaPage() {
   const [success, setSuccess] = useState('');
   const [esAdmin, setEsAdmin] = useState(false);
 
-  // Sincronizar el rol del administrador
+  // 1. SINCRONIZACIÓN DINÁMICA DEL ROL
   useEffect(() => {
-    const rol = localStorage.getItem('userRole'); // Usamos el nombre que definimos en el login
-    setEsAdmin(rol === 'admin');
+    const checkAuth = () => {
+      const rol = localStorage.getItem('role'); // Llave unificada con Login y Navbar
+      setEsAdmin(rol === 'admin');
+    };
+
+    checkAuth(); // Chequeo inicial al cargar
+
+    // Escuchar cambios por si el usuario hace login/logout en otra pestaña
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
+  // 2. CARGA DE SERVICIOS OPTIMIZADA
   const cargarServicios = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const limite = esAdmin ? 10 : 9;
+      // Usamos el rol actualizado para definir el límite
+      const rolActual = localStorage.getItem('role');
+      const isAdminActual = rolActual === 'admin';
+      const limite = isAdminActual ? 10 : 9;
+
       const res = await fetch(`${API}/productos?page=${pagina}&limit=${limite}`);
       const json = await res.json();
       
@@ -41,12 +54,13 @@ export default function ServiciosBarberiaPage() {
     } finally {
       setLoading(false);
     }
-  }, [pagina, esAdmin]);
+  }, [pagina]); // Solo depende de la página
 
   useEffect(() => { 
     cargarServicios(); 
-  }, [cargarServicios]);
+  }, [cargarServicios, esAdmin]); // Recarga si el estado de admin cambia
 
+  // 3. LÓGICA DE CREACIÓN (SOLO ADMIN)
   const crearServicio = async (ev) => {
     ev.preventDefault();
     const token = localStorage.getItem('token'); 
@@ -73,7 +87,7 @@ export default function ServiciosBarberiaPage() {
         setSuccess('¡Servicio SwiftCut agregado con éxito!');
         setNombre(''); 
         setPrecio('');
-        cargarServicios(); // Recargar la lista automáticamente
+        cargarServicios();
         setTimeout(() => setSuccess(''), 3000);
       } else {
         setError(resData.error || 'No tienes permisos para realizar esta acción');
@@ -89,11 +103,16 @@ export default function ServiciosBarberiaPage() {
     <main className="max-w-6xl mx-auto p-6 font-sans">
       <header className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
         <h1 className="text-5xl font-black uppercase italic tracking-tighter text-gray-900">
-          {esAdmin ? <span className="text-zinc-800">Panel <span className="text-blue-600">Admin</span></span> : 'Nuestros Servicios'}
+          {esAdmin ? (
+            <span className="text-zinc-800">Panel <span className="text-blue-600">Admin</span></span>
+          ) : (
+            'Nuestros Servicios'
+          )}
         </h1>
         <PrecioDolar />
       </header>
 
+      {/* TARJETA DE REGISTRO (SOLO PARA ADMIN) */}
       {esAdmin && (
         <section className="bg-zinc-900 p-8 md:p-12 rounded-[3rem] shadow-2xl border-l-[12px] border-blue-600 mb-12 text-white transition-all hover:shadow-blue-500/10">
           <h2 className="text-xl font-bold mb-8 uppercase tracking-widest text-blue-400">Registrar Nuevo Servicio</h2>
@@ -133,6 +152,7 @@ export default function ServiciosBarberiaPage() {
         <StatusBox loading={loading} error={error} success={success} />
       </div>
 
+      {/* LISTADO DE SERVICIOS */}
       <section className={esAdmin ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"}>
         {servicios.length > 0 ? (
           servicios.map(s => (
@@ -163,6 +183,7 @@ export default function ServiciosBarberiaPage() {
         )}
       </section>
 
+      {/* PAGINACIÓN */}
       {totalPages > 1 && (
         <div className="flex justify-center gap-4 mt-12">
           <button 

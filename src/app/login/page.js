@@ -37,27 +37,28 @@ export default function LoginPage() {
         return;
       }
 
-      // 1. Guardar Token y Rol en localStorage
+      // 1. GUARDAR DATOS (IMPORTANTE: Llaves consistentes con el Navbar)
       setToken(data.token);
       localStorage.setItem('token', data.token); 
       
-      // Guardamos el rol que viene del nuevo controlador (data.user.role)
+      // Guardamos el rol usando la llave 'role' (no 'userRole')
       if (data.user && data.user.role) {
-        localStorage.setItem('userRole', data.user.role);
+        localStorage.setItem('role', data.user.role);
       }
 
+      // 2. DISPARAR EVENTO (Para que el Navbar despierte en la misma pestaña)
       window.dispatchEvent(new Event('storage'));
+      
       setSuccess('¡Bienvenido! Redirigiendo...');
       
-      // 2. Redirección inteligente basada en el ROL
+      // 3. REDIRECCIÓN INTELIGENTE
       setTimeout(() => {
         if (data.user && data.user.role === 'admin') {
-          // Si es admin, lo mandamos al panel de citas
           router.push('/admin/citas'); 
         } else {
-          // Si es cliente, lo mandamos a agendar o servicios
           router.push('/agendar'); 
         }
+        // Forzamos refresh para asegurar que todos los componentes carguen el nuevo estado
         router.refresh();
       }, 1500);
 
