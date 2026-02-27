@@ -6,22 +6,20 @@ import Link from 'next/link';
 export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [role, setRole] = useState(null);
-  const [mounted, setMounted] = useState(false); // Evita errores de renderizado
+  const [mounted, setMounted] = useState(false); 
   const router = useRouter();
 
   useEffect(() => {
-    setMounted(true); // El componente ya está en el cliente
+    setMounted(true); 
     
     const checkAuth = () => {
       const token = localStorage.getItem('token');
       const userRole = localStorage.getItem('role');
-      // Verificación estricta del token
       setIsLoggedIn(!!(token && token !== "undefined" && token !== "null"));
       setRole(userRole);
     };
 
     checkAuth();
-    // Escucha cambios en otras pestañas
     window.addEventListener('storage', checkAuth);
     return () => window.removeEventListener('storage', checkAuth);
   }, []);
@@ -34,12 +32,11 @@ export default function Navbar() {
     router.refresh();
   };
 
-  // Si no ha montado en el cliente, no renderizamos nada para evitar el botón fantasma
   if (!mounted) return null;
 
   const isAdmin = isLoggedIn && role === 'admin';
   const navStyles = isAdmin 
-    ? "bg-zinc-950 border-b border-blue-900/50 shadow-blue-900/20" 
+    ? "bg-zinc-950 border-b border-blue-900/50 shadow-2xl shadow-blue-900/10" 
     : "bg-white border-b border-gray-100 shadow-sm";
 
   const textStyles = isAdmin ? "text-white" : "text-gray-900";
@@ -55,27 +52,35 @@ export default function Navbar() {
             SWIFT<span className="text-blue-600">CUT</span>
           </Link>
           {isAdmin && (
-            <span className="ml-2 text-[10px] not-italic bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">
-              Staff
+            <span className="ml-2 text-[9px] align-middle not-italic bg-blue-600 text-white px-2 py-0.5 rounded-md uppercase tracking-widest font-black">
+              Admin Mode
             </span>
           )}
         </div>
         
         <ul className={`flex gap-8 items-center font-bold uppercase text-[11px] tracking-widest ${isAdmin ? 'text-zinc-400' : 'text-gray-500'}`}>
-          <li>
-            <Link href="/servicios" className={`${linkHover} transition-colors`}>Servicios</Link>
-          </li>
           
-          {/* LÓGICA DE BOTÓN DINÁMICO */}
+          {/* ENLACES PÚBLICOS (Solo se muestran si NO es admin para no saturar) */}
+          {!isAdmin && (
+            <li>
+              <Link href="/servicios" className={`${linkHover} transition-colors`}>Servicios</Link>
+            </li>
+          )}
+          
+          {/* BOTÓN PRINCIPAL DE ACCIÓN */}
           <li>
             {isLoggedIn ? (
-              // CASO: USUARIO LOGUEADO
               isAdmin ? (
+                // BOTÓN SIEMPRE VISIBLE PARA EL ADMIN
                 <Link 
                   href="/admin/citas" 
-                  className="bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/40"
+                  className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/40 border border-blue-400/20 flex items-center gap-2"
                 >
-                  Gestionar Agenda
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-100 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-100"></span>
+                  </span>
+                  Panel de Citas
                 </Link>
               ) : (
                 <Link 
@@ -86,23 +91,23 @@ export default function Navbar() {
                 </Link>
               )
             ) : (
-              // CASO: INVITADO (No mostramos el botón de Agendar)
-              <Link href="/login" className="text-blue-600 hover:text-blue-800 transition-colors">
+              <Link href="/login" className="bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all">
                 Reservar Turno
               </Link>
             )}
           </li>
 
+          {/* BOTÓN DE SALIDA */}
           <li>
             {isLoggedIn ? (
               <button 
                 onClick={handleLogout}
-                className="text-red-500 hover:text-red-400 font-black transition-colors"
+                className={`${isAdmin ? 'text-zinc-500 hover:text-white' : 'text-red-500 hover:text-red-600'} font-black transition-colors flex items-center gap-1`}
               >
-                {isAdmin ? 'Cerrar Panel' : 'Salir'}
+                {isAdmin ? 'Cerrar Sesión' : 'Salir'}
               </button>
             ) : (
-              <Link href="/login" className="hover:text-blue-600 transition-colors">Login</Link>
+              <Link href="/login" className={`${linkHover} transition-colors`}>Login</Link>
             )}
           </li>
         </ul>
