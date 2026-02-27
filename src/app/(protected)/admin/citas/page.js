@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { API } from '../../../config'; // Ajusta la ruta según tu profundidad de carpetas
-import StatusBox from '../../components/StatusBox';
+import { API } from '../../../../config'; // Ajusta la ruta según tu profundidad de carpetas
+import StatusBox from '../../../components/StatusBox';
 
 export default function AdminCitasPage() {
   const [citas, setCitas] = useState([]);
