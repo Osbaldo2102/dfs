@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { API } from '@/config';
-import { setToken } from '@/lib/auth';
-import StatusBox from '@/components/StatusBox';
+import { API } from '../../../config';
+import { setToken } from '../lib/auth';
+import StatusBox from '../components/StatusBox';
 
 export default function LoginPage() { 
   const router = useRouter();

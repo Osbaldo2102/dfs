@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { API } from '@/config';
-import StatusBox from '@/components/StatusBox';
-import PrecioDolar from '@/components/PrecioDolar'; // Importamos el widget
+import { API } from '../../../config';
+import StatusBox from '../components/StatusBox';
+import PrecioDolar from '../components/PrecioDolar'; // Importamos el widget
 
 export default function ServiciosBarberiaPage() {
   const [servicios, setServicios] = useState([]);

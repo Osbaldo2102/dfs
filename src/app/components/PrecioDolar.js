@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { API } from '@/config';
+import { API } from '../../../config';
 
 export default function PrecioDolar() {
   const [precio, setPrecio] = useState(null);
