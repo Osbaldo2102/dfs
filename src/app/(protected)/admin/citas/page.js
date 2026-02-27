@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { API } from '../../../../../config'; 
-import StatusBox from '../../../../components/StatusBox';
+import StatusBox from '../../../components/StatusBox';
 
 export default function AdminCitasPage() {
   const [citas, setCitas] = useState([]);

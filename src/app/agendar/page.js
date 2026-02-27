@@ -1,12 +1,15 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { API } from '../../../config'; 
 import StatusBox from '@/app/components/StatusBox';
 
 export default function AgendarCitaPage() {
     const [servicios, setServicios] = useState([]);
+    const [horariosDisponibles, setHorariosDisponibles] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [loadingHoras, setLoadingHoras] = useState(false);
     const [msg, setMsg] = useState({ text: '', error: false });
+    
     const [formData, setFormData] = useState({
         cliente_nombre: '',
         cliente_telefono: '',
@@ -15,21 +18,14 @@ export default function AgendarCitaPage() {
         hora: ''
     });
 
+    // 1. Cargar Catálogo de Productos/Servicios
     useEffect(() => {
         const fetchServicios = async () => {
             try {
-                // MODIFICACIÓN: Apuntamos a /productos ya que esa tabla es la que existe
                 const baseUrl = API.endsWith('/') ? API.slice(0, -1) : API;
-                const urlFinal = `${baseUrl}/productos`;
-                
-                console.log("DEBUG: Obteniendo servicios desde tabla productos:", urlFinal);
-
-                const res = await fetch(urlFinal);
+                const res = await fetch(`${baseUrl}/productos`);
                 if (!res.ok) throw new Error("No se pudieron obtener los servicios");
-                
                 const data = await res.json();
-                
-                // Si tu API de productos devuelve un objeto con un array (ej. { data: [] }), lo manejamos:
                 const listaProductos = Array.isArray(data) ? data : (data.data || []);
                 setServicios(listaProductos);
             } catch (err) {
@@ -40,10 +36,49 @@ export default function AgendarCitaPage() {
         fetchServicios();
     }, []);
 
+    // 2. Consultar disponibilidad al cambiar la fecha
+    const consultarDisponibilidad = useCallback(async (fechaSeleccionada) => {
+    if (!fechaSeleccionada) return;
+    
+    setLoadingHoras(true);
+    setHorariosDisponibles([]); 
+
+    try {
+        // 1. Limpiamos la URL de posibles barras diagonales dobles
+        const baseUrl = API.endsWith('/') ? API.slice(0, -1) : API;
+        const urlFinal = `${baseUrl}/citas/disponibles?fecha=${fechaSeleccionada}`;
+        
+        console.log("Intentando fetch a:", urlFinal); // ESTO TE DIRÁ SI LA URL ESTÁ ROTA
+
+        const res = await fetch(urlFinal, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) throw new Error(`Error servidor: ${res.status}`);
+
+        const data = await res.json();
+        setHorariosDisponibles(data.disponibles || []);
+    } catch (err) {
+        // Aquí es donde te salta el SyntaxError si la URL está mal
+        console.error("Error detallado:", err); 
+        setMsg({ text: 'Error al cargar horarios. Revisa la consola.', error: true });
+    } finally {
+        setLoadingHoras(false);
+    }
+}, []);
+
+    useEffect(() => {
+        consultarDisponibilidad(formData.fecha);
+    }, [formData.fecha, consultarDisponibilidad]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.servicio_id) {
-            setMsg({ text: 'Por favor selecciona un servicio', error: true });
+        if (!formData.servicio_id || !formData.hora) {
+            setMsg({ text: 'Selecciona servicio y horario', error: true });
             return;
         }
 
@@ -65,7 +100,7 @@ export default function AgendarCitaPage() {
                     cliente_nombre: '', cliente_telefono: '',
                     servicio_id: '', fecha: '', hora: ''
                 });
-                e.target.reset();
+                setHorariosDisponibles([]);
             } else {
                 setMsg({ text: data.error || 'Error al agendar', error: true });
             }
@@ -75,6 +110,9 @@ export default function AgendarCitaPage() {
             setLoading(false);
         }
     };
+
+    // Buscar nombre del servicio para el resumen
+    const servicioSeleccionado = servicios.find(s => String(s.id) === String(formData.servicio_id));
 
     return (
         <main className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center">
@@ -112,7 +150,7 @@ export default function AgendarCitaPage() {
                     </div>
 
                     <div>
-                        <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Servicio (desde Productos)</label>
+                        <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Servicio</label>
                         <select 
                             required
                             value={formData.servicio_id}
@@ -121,42 +159,71 @@ export default function AgendarCitaPage() {
                         >
                             <option value="" disabled>¿Qué te haremos hoy?</option>
                             {servicios.map(s => (
-                                <option key={s.id} value={s.id} className="bg-zinc-900 text-white">
-                                    {s.nombre} - ${s.precio}
-                                </option>
+                                <option key={s.id} value={s.id}>{s.nombre} - ${s.precio}</option>
                             ))}
                         </select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Fecha</label>
-                            <input 
-                                required
-                                type="date" 
-                                value={formData.fecha}
-                                className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                                style={{ colorScheme: 'dark' }}
-                                onChange={e => setFormData({...formData, fecha: e.target.value})} 
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Hora</label>
-                            <input 
-                                required
-                                type="time" 
-                                value={formData.hora}
-                                className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                                style={{ colorScheme: 'dark' }}
-                                onChange={e => setFormData({...formData, hora: e.target.value})} 
-                            />
+                    <div>
+                        <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Selecciona el día</label>
+                        <input 
+                            required
+                            type="date" 
+                            min={new Date().toISOString().split('T')[0]}
+                            value={formData.fecha}
+                            className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                            style={{ colorScheme: 'dark' }}
+                            onChange={e => setFormData({...formData, fecha: e.target.value})} 
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Horas Disponibles</label>
+                        <div className="grid grid-cols-3 gap-2 mt-2">
+                            {loadingHoras ? (
+                                <p className="col-span-3 text-center text-zinc-600 text-[10px] animate-pulse">Consultando agenda...</p>
+                            ) : horariosDisponibles.length > 0 ? (
+                                horariosDisponibles.map(h => (
+                                    <button
+                                        key={h}
+                                        type="button"
+                                        onClick={() => setFormData({...formData, hora: h})}
+                                        className={`p-3 rounded-xl text-xs font-bold transition-all border ${
+                                            formData.hora === h 
+                                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/40' 
+                                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                                        }`}
+                                    >
+                                        {h}
+                                    </button>
+                                ))
+                            ) : (
+                                <p className="col-span-3 text-center text-zinc-600 text-[10px] py-4 bg-zinc-800/30 rounded-2xl">
+                                    {formData.fecha ? 'No hay cupos disponibles' : 'Elige una fecha'}
+                                </p>
+                            )}
                         </div>
                     </div>
 
+                    {/* BLOQUE DE RESUMEN DINÁMICO */}
+                    {formData.hora && formData.servicio_id && (
+                        <div className="mt-2 p-4 bg-blue-600/10 border border-blue-600/20 rounded-2xl animate-pulse">
+                            <p className="text-[9px] text-blue-400 font-black uppercase tracking-[0.2em] mb-1 text-center">Resumen de Reserva</p>
+                            <div className="flex justify-between items-center px-2">
+                                <span className="text-xs font-bold text-white italic truncate mr-2">
+                                    {servicioSeleccionado?.nombre || 'Servicio'}
+                                </span>
+                                <span className="text-xs font-black text-blue-500 uppercase whitespace-nowrap">
+                                    {formData.hora} HS
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     <button 
                         type="submit" 
-                        disabled={loading}
-                        className="mt-4 bg-blue-600 hover:bg-blue-700 text-white p-5 rounded-2xl font-black uppercase italic tracking-widest shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-50"
+                        disabled={loading || !formData.hora}
+                        className="mt-4 bg-blue-600 hover:bg-blue-700 text-white p-5 rounded-2xl font-black uppercase italic tracking-widest shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale"
                     >
                         {loading ? 'Procesando...' : 'Confirmar Cita'}
                     </button>
