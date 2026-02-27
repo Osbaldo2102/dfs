@@ -70,7 +70,7 @@ export default function AdminCitasPage() {
                 </td>
                 <td className="p-8">
                   <span className="bg-zinc-100 text-zinc-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider">
-                    {cita.servicio_nombre}
+                    {cita.servicio_nombre || `Producto ID: ${cita.servicio_id}`}
                   </span>
                 </td>
                 <td className="p-8">

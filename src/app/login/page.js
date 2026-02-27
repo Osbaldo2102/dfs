@@ -37,13 +37,27 @@ export default function LoginPage() {
         return;
       }
 
+      // 1. Guardar Token y Rol en localStorage
       setToken(data.token);
       localStorage.setItem('token', data.token); 
+      
+      // Guardamos el rol que viene del nuevo controlador (data.user.role)
+      if (data.user && data.user.role) {
+        localStorage.setItem('userRole', data.user.role);
+      }
+
       window.dispatchEvent(new Event('storage'));
       setSuccess('¡Bienvenido! Redirigiendo...');
       
+      // 2. Redirección inteligente basada en el ROL
       setTimeout(() => {
-        router.push('/servicios');
+        if (data.user && data.user.role === 'admin') {
+          // Si es admin, lo mandamos al panel de citas
+          router.push('/admin/citas'); 
+        } else {
+          // Si es cliente, lo mandamos a agendar o servicios
+          router.push('/agendar'); 
+        }
         router.refresh();
       }, 1500);
 
@@ -55,14 +69,11 @@ export default function LoginPage() {
   };
 
   return (
-    // Contenedor que centra la tarjeta en toda la pantalla
     <main className="min-h-[85vh] flex items-center justify-center p-6">  
-      
-      {/* Tarjeta Blanca Pro */}
       <div className="bg-white p-10 md:p-14 rounded-[3.5rem] shadow-2xl shadow-gray-400/20 max-w-md w-full text-center border border-slate-50">
         
         <h1 className="text-4xl font-black mb-8 text-gray-900 uppercase italic tracking-tight">
-          Iniciar Sesión
+          Swift<span className="text-blue-600">Cut</span>
         </h1>
         
         <form onSubmit={login} className="flex flex-col gap-5 text-left">
@@ -72,7 +83,7 @@ export default function LoginPage() {
               className="bg-gray-50 border-none p-4 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 transition-all"
               type="email"
               value={email} 
-              placeholder="correo@ejemplo.com" 
+              placeholder="admin@barberia.com" 
               onChange={e => setEmail(e.target.value)}
               required
             />

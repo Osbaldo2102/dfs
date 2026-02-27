@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { API } from '@/config'; 
+import { API } from '../../../config'; 
 import StatusBox from '@/app/components/StatusBox';
 
 export default function AgendarCitaPage() {
@@ -18,11 +18,23 @@ export default function AgendarCitaPage() {
     useEffect(() => {
         const fetchServicios = async () => {
             try {
-                const res = await fetch(`${API}/servicios`);
+                // MODIFICACIÓN: Apuntamos a /productos ya que esa tabla es la que existe
+                const baseUrl = API.endsWith('/') ? API.slice(0, -1) : API;
+                const urlFinal = `${baseUrl}/productos`;
+                
+                console.log("DEBUG: Obteniendo servicios desde tabla productos:", urlFinal);
+
+                const res = await fetch(urlFinal);
+                if (!res.ok) throw new Error("No se pudieron obtener los servicios");
+                
                 const data = await res.json();
-                setServicios(data);
+                
+                // Si tu API de productos devuelve un objeto con un array (ej. { data: [] }), lo manejamos:
+                const listaProductos = Array.isArray(data) ? data : (data.data || []);
+                setServicios(listaProductos);
             } catch (err) {
-                console.error("Error cargando servicios", err);
+                console.error("Error cargando servicios:", err);
+                setMsg({ text: 'Error al conectar con el catálogo', error: true });
             }
         };
         fetchServicios();
@@ -30,6 +42,11 @@ export default function AgendarCitaPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!formData.servicio_id) {
+            setMsg({ text: 'Por favor selecciona un servicio', error: true });
+            return;
+        }
+
         setLoading(true);
         setMsg({ text: '', error: false });
 
@@ -39,16 +56,21 @@ export default function AgendarCitaPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
+            
             const data = await res.json();
 
             if (res.ok) {
-                setMsg({ text: '¡Cita agendada! Te esperamos en SwiftCut 💈', error: false });
+                setMsg({ text: '¡Cita agendada con éxito! 💈', error: false });
+                setFormData({
+                    cliente_nombre: '', cliente_telefono: '',
+                    servicio_id: '', fecha: '', hora: ''
+                });
                 e.target.reset();
             } else {
                 setMsg({ text: data.error || 'Error al agendar', error: true });
             }
         } catch (err) {
-            setMsg({ text: 'No se pudo conectar con el servidor', error: true });
+            setMsg({ text: 'Error de red: El servidor no responde', error: true });
         } finally {
             setLoading(false);
         }
@@ -56,7 +78,6 @@ export default function AgendarCitaPage() {
 
     return (
         <main className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center">
-            {/* Logo o Titulo */}
             <div className="mb-10 text-center">
                 <h1 className="text-5xl font-black uppercase italic tracking-tighter">
                     Swift<span className="text-blue-600">Cut</span>
@@ -71,6 +92,7 @@ export default function AgendarCitaPage() {
                         <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Nombre Completo</label>
                         <input 
                             required
+                            value={formData.cliente_nombre}
                             className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white placeholder-zinc-600 focus:ring-2 focus:ring-blue-600 outline-none transition-all"
                             placeholder="Ej. Juan Pérez" 
                             onChange={e => setFormData({...formData, cliente_nombre: e.target.value})} 
@@ -78,10 +100,11 @@ export default function AgendarCitaPage() {
                     </div>
 
                     <div>
-                        <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Teléfono de contacto</label>
+                        <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Teléfono</label>
                         <input 
                             required
                             type="tel"
+                            value={formData.cliente_telefono}
                             className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white placeholder-zinc-600 focus:ring-2 focus:ring-blue-600 outline-none transition-all"
                             placeholder="Tu número de celular" 
                             onChange={e => setFormData({...formData, cliente_telefono: e.target.value})} 
@@ -89,14 +112,19 @@ export default function AgendarCitaPage() {
                     </div>
 
                     <div>
-                        <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Selecciona el Servicio</label>
+                        <label className="text-[10px] uppercase font-black text-zinc-500 ml-4 mb-2 block">Servicio (desde Productos)</label>
                         <select 
                             required
-                            className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-600 transition-all appearance-none"
+                            value={formData.servicio_id}
+                            className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-600 transition-all appearance-none cursor-pointer"
                             onChange={e => setFormData({...formData, servicio_id: e.target.value})}
                         >
-                            <option value="">¿Qué te haremos hoy?</option>
-                            {servicios.map(s => <option key={s.id} value={s.id}>{s.nombre} - ${s.precio}</option>)}
+                            <option value="" disabled>¿Qué te haremos hoy?</option>
+                            {servicios.map(s => (
+                                <option key={s.id} value={s.id} className="bg-zinc-900 text-white">
+                                    {s.nombre} - ${s.precio}
+                                </option>
+                            ))}
                         </select>
                     </div>
 
@@ -106,7 +134,9 @@ export default function AgendarCitaPage() {
                             <input 
                                 required
                                 type="date" 
+                                value={formData.fecha}
                                 className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                                style={{ colorScheme: 'dark' }}
                                 onChange={e => setFormData({...formData, fecha: e.target.value})} 
                             />
                         </div>
@@ -115,7 +145,9 @@ export default function AgendarCitaPage() {
                             <input 
                                 required
                                 type="time" 
+                                value={formData.hora}
                                 className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                                style={{ colorScheme: 'dark' }}
                                 onChange={e => setFormData({...formData, hora: e.target.value})} 
                             />
                         </div>
@@ -131,15 +163,11 @@ export default function AgendarCitaPage() {
                 </form>
 
                 {msg.text && (
-                    <div className={`mt-6 p-4 rounded-2xl text-center text-xs font-bold uppercase tracking-wider ${msg.error ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                    <div className={`mt-6 p-4 rounded-2xl text-center text-xs font-bold uppercase tracking-wider ${msg.error ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
                         {msg.text}
                     </div>
                 )}
             </div>
-            
-            <footer className="mt-10">
-                <p className="text-zinc-600 text-[9px] uppercase font-bold tracking-[0.5em]">Luxury Grooming Experience</p>
-            </footer>
         </main>
     );
 }
