@@ -1,13 +1,14 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { API } from '../../../config'; 
-import StatusBox from '@/app/components/StatusBox';
+import Link from 'next/link'; // Importamos Link para la navegación
 
 export default function AgendarCitaPage() {
     const [servicios, setServicios] = useState([]);
     const [horariosDisponibles, setHorariosDisponibles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [loadingHoras, setLoadingHoras] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [msg, setMsg] = useState({ text: '', error: false });
     
     const [formData, setFormData] = useState({
@@ -18,8 +19,23 @@ export default function AgendarCitaPage() {
         hora: ''
     });
 
-    // 1. Cargar Catálogo de Productos/Servicios
+    // 1. Cargar Catálogo y Verificar Sesión
     useEffect(() => {
+        // Verificar si hay usuario en localStorage
+        const storedUser = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+
+        if (storedUser && token) {
+            const user = JSON.parse(storedUser);
+            setIsLoggedIn(true);
+            // Autorrellenar datos si existen
+            setFormData(prev => ({
+                ...prev,
+                cliente_nombre: user.nombre || user.username || '',
+                cliente_telefono: user.telefono || ''
+            }));
+        }
+
         const fetchServicios = async () => {
             try {
                 const baseUrl = API.endsWith('/') ? API.slice(0, -1) : API;
@@ -36,40 +52,25 @@ export default function AgendarCitaPage() {
         fetchServicios();
     }, []);
 
-    // 2. Consultar disponibilidad al cambiar la fecha
+    // 2. Consultar disponibilidad
     const consultarDisponibilidad = useCallback(async (fechaSeleccionada) => {
-    if (!fechaSeleccionada) return;
-    
-    setLoadingHoras(true);
-    setHorariosDisponibles([]); 
+        if (!fechaSeleccionada) return;
+        setLoadingHoras(true);
+        setHorariosDisponibles([]); 
 
-    try {
-        // 1. Limpiamos la URL de posibles barras diagonales dobles
-        const baseUrl = API.endsWith('/') ? API.slice(0, -1) : API;
-        const urlFinal = `${baseUrl}/citas/disponibles?fecha=${fechaSeleccionada}`;
-        
-        console.log("Intentando fetch a:", urlFinal); // ESTO TE DIRÁ SI LA URL ESTÁ ROTA
-
-        const res = await fetch(urlFinal, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!res.ok) throw new Error(`Error servidor: ${res.status}`);
-
-        const data = await res.json();
-        setHorariosDisponibles(data.disponibles || []);
-    } catch (err) {
-        // Aquí es donde te salta el SyntaxError si la URL está mal
-        console.error("Error detallado:", err); 
-        setMsg({ text: 'Error al cargar horarios. Revisa la consola.', error: true });
-    } finally {
-        setLoadingHoras(false);
-    }
-}, []);
+        try {
+            const baseUrl = API.endsWith('/') ? API.slice(0, -1) : API;
+            const urlFinal = `${baseUrl}/citas/disponibles?fecha=${fechaSeleccionada}`;
+            const res = await fetch(urlFinal);
+            if (!res.ok) throw new Error(`Error servidor: ${res.status}`);
+            const data = await res.json();
+            setHorariosDisponibles(data.disponibles || []);
+        } catch (err) {
+            console.error("Error detallado:", err); 
+        } finally {
+            setLoadingHoras(false);
+        }
+    }, []);
 
     useEffect(() => {
         consultarDisponibilidad(formData.fecha);
@@ -77,6 +78,8 @@ export default function AgendarCitaPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!isLoggedIn) return; // Protección extra
+
         if (!formData.servicio_id || !formData.hora) {
             setMsg({ text: 'Selecciona servicio y horario', error: true });
             return;
@@ -92,16 +95,12 @@ export default function AgendarCitaPage() {
                 body: JSON.stringify(formData)
             });
             
-            const data = await res.json();
-
             if (res.ok) {
                 setMsg({ text: '¡Cita agendada con éxito! 💈', error: false });
-                setFormData({
-                    cliente_nombre: '', cliente_telefono: '',
-                    servicio_id: '', fecha: '', hora: ''
-                });
+                setFormData(prev => ({ ...prev, fecha: '', hora: '' })); // Limpiar solo cita
                 setHorariosDisponibles([]);
             } else {
+                const data = await res.json();
                 setMsg({ text: data.error || 'Error al agendar', error: true });
             }
         } catch (err) {
@@ -111,7 +110,6 @@ export default function AgendarCitaPage() {
         }
     };
 
-    // Buscar nombre del servicio para el resumen
     const servicioSeleccionado = servicios.find(s => String(s.id) === String(formData.servicio_id));
 
     return (
@@ -205,9 +203,9 @@ export default function AgendarCitaPage() {
                         </div>
                     </div>
 
-                    {/* BLOQUE DE RESUMEN DINÁMICO */}
+                    {/* RESUMEN DINÁMICO */}
                     {formData.hora && formData.servicio_id && (
-                        <div className="mt-2 p-4 bg-blue-600/10 border border-blue-600/20 rounded-2xl animate-pulse">
+                        <div className="mt-2 p-4 bg-blue-600/10 border border-blue-600/20 rounded-2xl">
                             <p className="text-[9px] text-blue-400 font-black uppercase tracking-[0.2em] mb-1 text-center">Resumen de Reserva</p>
                             <div className="flex justify-between items-center px-2">
                                 <span className="text-xs font-bold text-white italic truncate mr-2">
@@ -220,13 +218,26 @@ export default function AgendarCitaPage() {
                         </div>
                     )}
 
-                    <button 
-                        type="submit" 
-                        disabled={loading || !formData.hora}
-                        className="mt-4 bg-blue-600 hover:bg-blue-700 text-white p-5 rounded-2xl font-black uppercase italic tracking-widest shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale"
-                    >
-                        {loading ? 'Procesando...' : 'Confirmar Cita'}
-                    </button>
+                    {/* BOTÓN PROTEGIDO POR LOGIN */}
+                    {isLoggedIn ? (
+                        <button 
+                            type="submit" 
+                            disabled={loading || !formData.hora}
+                            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white p-5 rounded-2xl font-black uppercase italic tracking-widest shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-30"
+                        >
+                            {loading ? 'Procesando...' : 'Confirmar Cita'}
+                        </button>
+                    ) : (
+                        <div className="mt-4 flex flex-col gap-3 text-center">
+                            <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Inicia sesión para reservar este turno</p>
+                            <Link 
+                                href="/login" 
+                                className="bg-white text-black p-5 rounded-2xl font-black uppercase italic tracking-widest hover:bg-blue-600 hover:text-white transition-all"
+                            >
+                                Iniciar Sesión
+                            </Link>
+                        </div>
+                    )}
                 </form>
 
                 {msg.text && (
