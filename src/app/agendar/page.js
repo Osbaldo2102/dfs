@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { API } from '../../../config'; 
-import Link from 'next/link'; // Importamos Link para la navegación
+import Link from 'next/link';
 
 export default function AgendarCitaPage() {
     const [servicios, setServicios] = useState([]);
@@ -19,33 +19,41 @@ export default function AgendarCitaPage() {
         hora: ''
     });
 
-    // 1. Cargar Catálogo y Verificar Sesión
+    // 1. Cargar Catálogo y Verificar Sesión (ESTRICTO)
     useEffect(() => {
-        // Verificar si hay usuario en localStorage
         const storedUser = localStorage.getItem('user');
         const token = localStorage.getItem('token');
 
-        if (storedUser && token) {
-            const user = JSON.parse(storedUser);
+        // Debug para ver qué hay en tu navegador
+        console.log("TOKEN ACTUAL:", token);
+
+        // Verificación estricta: que existan y que no sean strings "null" o "undefined"
+        if (token && token !== "null" && token !== "undefined") {
             setIsLoggedIn(true);
-            // Autorrellenar datos si existen
-            setFormData(prev => ({
-                ...prev,
-                cliente_nombre: user.nombre || user.username || '',
-                cliente_telefono: user.telefono || ''
-            }));
+            if (storedUser) {
+                try {
+                    const user = JSON.parse(storedUser);
+                    setFormData(prev => ({
+                        ...prev,
+                        cliente_nombre: user.nombre || user.username || '',
+                        cliente_telefono: user.telefono || ''
+                    }));
+                } catch (e) {
+                    console.error("Error al leer datos de usuario");
+                }
+            }
+        } else {
+            setIsLoggedIn(false);
         }
 
         const fetchServicios = async () => {
             try {
                 const baseUrl = API.endsWith('/') ? API.slice(0, -1) : API;
                 const res = await fetch(`${baseUrl}/productos`);
-                if (!res.ok) throw new Error("No se pudieron obtener los servicios");
+                if (!res.ok) throw new Error("Error servicios");
                 const data = await res.json();
-                const listaProductos = Array.isArray(data) ? data : (data.data || []);
-                setServicios(listaProductos);
+                setServicios(Array.isArray(data) ? data : (data.data || []));
             } catch (err) {
-                console.error("Error cargando servicios:", err);
                 setMsg({ text: 'Error al conectar con el catálogo', error: true });
             }
         };
@@ -56,17 +64,13 @@ export default function AgendarCitaPage() {
     const consultarDisponibilidad = useCallback(async (fechaSeleccionada) => {
         if (!fechaSeleccionada) return;
         setLoadingHoras(true);
-        setHorariosDisponibles([]); 
-
         try {
             const baseUrl = API.endsWith('/') ? API.slice(0, -1) : API;
-            const urlFinal = `${baseUrl}/citas/disponibles?fecha=${fechaSeleccionada}`;
-            const res = await fetch(urlFinal);
-            if (!res.ok) throw new Error(`Error servidor: ${res.status}`);
+            const res = await fetch(`${baseUrl}/citas/disponibles?fecha=${fechaSeleccionada}`);
             const data = await res.json();
             setHorariosDisponibles(data.disponibles || []);
         } catch (err) {
-            console.error("Error detallado:", err); 
+            console.error(err); 
         } finally {
             setLoadingHoras(false);
         }
@@ -78,16 +82,12 @@ export default function AgendarCitaPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!isLoggedIn) return; // Protección extra
-
-        if (!formData.servicio_id || !formData.hora) {
-            setMsg({ text: 'Selecciona servicio y horario', error: true });
+        if (!isLoggedIn) {
+            setMsg({ text: 'Debes iniciar sesión primero', error: true });
             return;
         }
 
         setLoading(true);
-        setMsg({ text: '', error: false });
-
         try {
             const res = await fetch(`${API}/citas`, {
                 method: 'POST',
@@ -97,14 +97,14 @@ export default function AgendarCitaPage() {
             
             if (res.ok) {
                 setMsg({ text: '¡Cita agendada con éxito! 💈', error: false });
-                setFormData(prev => ({ ...prev, fecha: '', hora: '' })); // Limpiar solo cita
+                setFormData(prev => ({ ...prev, fecha: '', hora: '' }));
                 setHorariosDisponibles([]);
             } else {
                 const data = await res.json();
                 setMsg({ text: data.error || 'Error al agendar', error: true });
             }
         } catch (err) {
-            setMsg({ text: 'Error de red: El servidor no responde', error: true });
+            setMsg({ text: 'Error de red', error: true });
         } finally {
             setLoading(false);
         }
@@ -152,7 +152,7 @@ export default function AgendarCitaPage() {
                         <select 
                             required
                             value={formData.servicio_id}
-                            className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-600 transition-all appearance-none cursor-pointer"
+                            className="w-full bg-zinc-800 border-none p-4 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-600 transition-all cursor-pointer appearance-none"
                             onChange={e => setFormData({...formData, servicio_id: e.target.value})}
                         >
                             <option value="" disabled>¿Qué te haremos hoy?</option>
@@ -218,7 +218,7 @@ export default function AgendarCitaPage() {
                         </div>
                     )}
 
-                    {/* BOTÓN PROTEGIDO POR LOGIN */}
+                    {/* BOTÓN CONDICIONAL FINAL */}
                     {isLoggedIn ? (
                         <button 
                             type="submit" 
@@ -228,11 +228,11 @@ export default function AgendarCitaPage() {
                             {loading ? 'Procesando...' : 'Confirmar Cita'}
                         </button>
                     ) : (
-                        <div className="mt-4 flex flex-col gap-3 text-center">
-                            <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Inicia sesión para reservar este turno</p>
+                        <div className="mt-4 flex flex-col gap-3">
+                            <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest text-center">Debes estar logueado para agendar</p>
                             <Link 
                                 href="/login" 
-                                className="bg-white text-black p-5 rounded-2xl font-black uppercase italic tracking-widest hover:bg-blue-600 hover:text-white transition-all"
+                                className="bg-white text-black p-5 rounded-2xl font-black uppercase italic tracking-widest text-center hover:bg-blue-600 hover:text-white transition-all shadow-xl"
                             >
                                 Iniciar Sesión
                             </Link>
