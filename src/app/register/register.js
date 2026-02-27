@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { API } from '../config'; // Asegúrate de que apunte a localhost:4000
+import { API } from '../config'; 
 
 export const Register = () => {
   const [email, setEmail] = useState('');
@@ -8,7 +8,7 @@ export const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const response = await fetch(`${API}/users/create`, { // O /register si lo cambiaste
+    const response = await fetch(`${API}/users/register`, { 
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
